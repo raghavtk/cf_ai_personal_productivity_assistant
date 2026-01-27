@@ -12,5 +12,10 @@ database_name = "productivity-db"
 database_id = "3bfde29c-eff5-4a2c-9f7e-544c78849f4e"
 migrations_dir = "db/migrations"
 
-[vars]
-ENV = "development"
+[[durable_objects.bindings]]
+name = "COMMAND_PARSER"
+class_name = "CommandParserDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["CommandParserDO"]

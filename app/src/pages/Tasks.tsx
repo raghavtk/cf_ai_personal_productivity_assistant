@@ -13,6 +13,8 @@ import {
   InputLabel,
   Select,
 } from '@mui/material'
+import { taskService } from '../services/taskService'
+import { useNavigate } from 'react-router-dom'
 
 type Category = 'work' | 'personal' | 'other'
 type Priority = 'high' | 'medium' | 'low'
@@ -58,6 +60,7 @@ const labelSx = { color: '#cbd5e1', '&.Mui-focused': { color: '#e5e7eb' } }
 
 const Tasks = () => {
   const [form, setForm] = useState<TaskForm>(initialState)
+  const navigate = useNavigate()
 
   const handleChange =
     (field: keyof TaskForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -76,9 +79,27 @@ const Tasks = () => {
     }))
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    console.log('Task draft:', form)
+    try {
+      await taskService.create({
+        title: form.title,
+        description: form.description,
+        priority: form.priority,
+        status: form.status,
+        category: form.category,
+        subcategory: form.subcategory,
+        due_date: form.dueDate,
+        estimated_duration: parseInt(form.estimatedDuration) || 0,
+        note: form.note,
+      } as any)
+      alert('Task created successfully!')
+      setForm(initialState)
+      navigate('/')
+    } catch (error) {
+      console.error('Failed to create task:', error)
+      alert('Failed to create task')
+    }
   }
 
   const handleReset = () => setForm(initialState)

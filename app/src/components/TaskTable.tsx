@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import { taskService } from '../services/taskService'
 
 export type TaskRow = {
   id: string
@@ -31,6 +32,7 @@ export type TaskRow = {
 
 type Props = {
   tasks: TaskRow[]
+  onDeleted?: (id: string) => void
 }
 
 const subcategoryMap: Record<TaskRow['category'], string[]> = {
@@ -39,7 +41,7 @@ const subcategoryMap: Record<TaskRow['category'], string[]> = {
   other: ['Other'],
 }
 
-const TaskTable = ({ tasks }: Props) => {
+const TaskTable = ({ tasks, onDeleted }: Props) => {
   const [rows, setRows] = useState<TaskRow[]>(tasks)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<TaskRow>>({})
@@ -67,13 +69,38 @@ const TaskTable = ({ tasks }: Props) => {
       }
     }
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId) return
-    setRows((prev) =>
-      prev.map((r) => (r.id === editingId ? { ...r, ...draft } as TaskRow : r))
-    )
-    setEditingId(null)
-    setDraft({})
+    try {
+      await taskService.update(editingId, {
+        title: draft.title,
+        description: draft.description,
+        priority: draft.priority,
+        status: draft.status,
+        category: draft.category,
+        subcategory: draft.subcategory,
+        due_date: draft.dueDate,
+        estimated_duration: draft.estimatedDuration,
+        note: draft.note,
+      } as any)
+      setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...draft } as TaskRow : r)))
+      setEditingId(null)
+      setDraft({})
+    } catch (error) {
+      console.error('Failed to save task:', error)
+      alert('Failed to save changes')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await taskService.delete(id)
+      setRows((prev) => prev.filter((r) => r.id !== id))
+      onDeleted?.(id)
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+      alert('Failed to delete task')
+    }
   }
 
   const currentSubcategories = useMemo(() => {
@@ -279,9 +306,14 @@ const TaskTable = ({ tasks }: Props) => {
                         </Button>
                       </Stack>
                     ) : (
-                      <Button size='small' variant='text' onClick={() => startEdit(row.id)} sx={{ color: '#e5e7eb' }}>
-                        Edit
-                      </Button>
+                      <Stack direction='row' spacing={1} justifyContent='flex-end'>
+                        <Button size='small' variant='text' onClick={() => startEdit(row.id)} sx={{ color: '#e5e7eb' }}>
+                          Edit
+                        </Button>
+                        <Button size='small' variant='outlined' color='error' onClick={() => handleDelete(row.id)}>
+                          Delete
+                        </Button>
+                      </Stack>
                     )}
                   </TableCell>
                 </TableRow>

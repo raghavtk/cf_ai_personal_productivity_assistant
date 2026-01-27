@@ -1,26 +1,38 @@
 import './App.css'
 import { Routes, Route } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import Tasks from './pages/Tasks'
 import ViewTasks from './pages/ViewTasks'
 import TaskTable, { TaskRow } from './components/TaskTable'
-
-const sampleTasks: TaskRow[] = [
-  {
-    id: '1',
-    title: 'Finish project report',
-    description: 'Complete the final draft for internship project',
-    priority: 'high',
-    status: 'pending',
-    category: 'work',
-    subcategory: 'Internship',
-    dueDate: '2024-06-30',
-    estimatedDuration: 120,
-    note: 'Check data section',
-  },
-]
+import { taskService } from './services/taskService'
 
 function Home() {
+  const [tasks, setTasks] = useState<TaskRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    taskService
+      .getAll()
+      .then((data) => {
+        const mapped: TaskRow[] = data.map((t) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          priority: t.priority,
+          status: t.status,
+          category: t.category,
+          subcategory: t.subcategory,
+          dueDate: t.due_date,
+          estimatedDuration: t.estimated_duration,
+          note: t.note,
+        }))
+        setTasks(mapped)
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false))
+  }, [])
+
   return (
     <div className='max-w-5xl mx-auto px-4 pt-18 pb-12 flex flex-col items-center text-center' style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '80px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -29,7 +41,7 @@ function Home() {
           Manage your tasks intelligently with AI-powered insights and natural language processing.
         </p>
       </div>
-      <TaskTable tasks={sampleTasks} />
+      {loading ? <p className='text-gray-300'>Loading tasks...</p> : <TaskTable tasks={tasks} />}
     </div>
   )
 }
