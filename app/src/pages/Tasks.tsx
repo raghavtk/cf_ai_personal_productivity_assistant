@@ -1,193 +1,222 @@
-import { useState } from 'react'
-import './Tasks.css'
+import { useState, FormEvent, ChangeEvent } from 'react'
+import {
+  Box,
+  Button,
+  Container,
+  Grid,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+} from '@mui/material'
 
-interface Task {
+type Category = 'work' | 'personal' | 'other'
+type Priority = 'high' | 'medium' | 'low'
+type Status = 'pending' | 'in_progress' | 'completed'
+
+type TaskForm = {
   title: string
   description: string
-  dueDate?: string
-  priority: 'low' | 'medium' | 'high'
-  status: 'todo' | 'in-progress' | 'done'
-  category: 'course' | 'leetcode' | 'Internship' | 'Personal' | 'Household' | 'Miscellaneous'
+  priority: Priority
+  category: Category
+  subcategory: string
+  dueDate: string
+  estimatedDuration: string
+  status: Status
+  note: string
 }
 
-function Tasks() {
-  const [task, setTask] = useState<Task>({
-    title: '',
-    description: '',
-    dueDate: '',
-    priority: 'medium',
-    status: 'todo',
-    category: 'Personal',
-  })
-  const [submitted, setSubmitted] = useState<Task | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const initialState: TaskForm = {
+  title: '',
+  description: '',
+  priority: 'medium',
+  category: 'work',
+  subcategory: 'Courses',
+  dueDate: '',
+  estimatedDuration: '',
+  status: 'pending',
+  note: '',
+}
 
-  function update<K extends keyof Task>(key: K, value: Task[K]) {
-    setTask((t) => ({ ...t, [key]: value }))
+const subcategoryMap: Record<Category, string[]> = {
+  work: ['Courses', 'Internship', 'Projects'],
+  personal: ['Health', 'Social', 'Finance', 'Chores'],
+  other: ['Other'],
+}
+
+const Tasks = () => {
+  const [form, setForm] = useState<TaskForm>(initialState)
+
+  const handleChange =
+    (field: keyof TaskForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((prev) => ({ ...prev, [field]: e.target.value }))
+
+  const handleSelect =
+    (field: keyof TaskForm) => (e: ChangeEvent<{ value: unknown }>) =>
+      setForm((prev) => ({ ...prev, [field]: e.target.value as string }))
+
+  const handleCategoryChange = (e: ChangeEvent<{ value: unknown }>) => {
+    const value = e.target.value as Category
+    setForm((prev) => ({
+      ...prev,
+      category: value,
+      subcategory: subcategoryMap[value][0],
+    }))
   }
 
-  function handleReset() {
-    setTask({
-      title: '',
-      description: '',
-      dueDate: '',
-      priority: 'medium',
-      status: 'todo',
-      category: 'Personal',
-    })
-    setSubmitted(null)
-    setError(null)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!task.title.trim()) {
-      setError('Please enter a task title')
-      return
-    }
-
-    setIsSubmitting(true)
-    setError(null)
-    try {
-      // Dummy submit - just set submitted state
-      setSubmitted(task)
-      console.log('Task submitted:', task)
-      
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save task')
-    } finally {
-      setIsSubmitting(false)
-    }
+    console.log('Task draft:', form)
   }
+
+  const handleReset = () => setForm(initialState)
 
   return (
-    <div className='tasks-container'>
-      <h1>Create a New Task</h1>
-      
-      <form onSubmit={handleSubmit} className='task-form'>
-        {error && <div className='error-message'>{error}</div>}
-        {submitted && (
-          <div className='success-message'>
-            ✓ Task created: {submitted.title}
-          </div>
-        )}
+    <Container
+      maxWidth='md'
+      sx={{ mt: 4, mb: 6, display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}
+    >
+      <Paper
+        elevation={3}
+        sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}
+      >
+        <Box mb={3}>
+          <Typography variant='h5' fontWeight={700} gutterBottom>
+            Create a Task
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            Fill in the details. Submit will connect to D1 later.
+          </Typography>
+        </Box>
 
-        <div className='form-group'>
-          <label htmlFor='title'>Task Title *</label>
-          <input
-            id='title'
-            type='text'
-            value={task.title}
-            onChange={(e) => update('title', e.target.value)}
-            placeholder='Enter task title'
-            maxLength={100}
-            required
-          />
-        </div>
+        <Box component='form' onSubmit={handleSubmit} noValidate>
+          <Stack spacing={3}>
+            <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth />
+            <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth />
 
-        <div className='form-group'>
-          <label htmlFor='description'>Description</label>
-          <textarea
-            id='description'
-            value={task.description}
-            onChange={(e) => update('description', e.target.value)}
-            placeholder='Enter task description (optional)'
-            rows={4}
-            maxLength={500}
-          />
-        </div>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel id='priority-label'>Priority</InputLabel>
+                  <Select
+                    labelId='priority-label'
+                    value={form.priority}
+                    label='Priority'
+                    onChange={handleSelect('priority')}
+                  >
+                    <MenuItem value='high'>High</MenuItem>
+                    <MenuItem value='medium'>Medium</MenuItem>
+                    <MenuItem value='low'>Low</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel id='status-label'>Status</InputLabel>
+                  <Select
+                    labelId='status-label'
+                    value={form.status}
+                    label='Status'
+                    onChange={handleSelect('status')}
+                  >
+                    <MenuItem value='pending'>Pending</MenuItem>
+                    <MenuItem value='in_progress'>In Progress</MenuItem>
+                    <MenuItem value='completed'>Completed</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
 
-        <div className='form-row'>
-          <div className='form-group'>
-            <label htmlFor='dueDate'>Due Date</label>
-            <input
-              id='dueDate'
-              type='date'
-              value={task.dueDate || ''}
-              onChange={(e) => update('dueDate', e.target.value)}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel id='category-label'>Category</InputLabel>
+                  <Select
+                    labelId='category-label'
+                    value={form.category}
+                    label='Category'
+                    onChange={handleCategoryChange}
+                  >
+                    <MenuItem value='work'>Work</MenuItem>
+                    <MenuItem value='personal'>Personal</MenuItem>
+                    <MenuItem value='other'>Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel id='subcategory-label'>Subcategory</InputLabel>
+                  <Select
+                    labelId='subcategory-label'
+                    value={form.subcategory}
+                    label='Subcategory'
+                    onChange={handleSelect('subcategory')}
+                  >
+                    {subcategoryMap[form.category].map((sub) => (
+                      <MenuItem key={sub} value={sub}>
+                        {sub}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label='Due Date'
+                  type='date'
+                  value={form.dueDate}
+                  onChange={handleChange('dueDate')}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label='Estimated Duration (minutes)'
+                  type='number'
+                  inputProps={{ min: 0 }}
+                  value={form.estimatedDuration}
+                  onChange={handleChange('estimatedDuration')}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+
+            <TextField
+              label='Note (max 200 chars)'
+              value={form.note}
+              onChange={handleChange('note')}
+              fullWidth
+              multiline
+              minRows={2}
+              inputProps={{ maxLength: 200 }}
+              helperText={`${form.note.length}/200`}
             />
-          </div>
 
-          <div className='form-group'>
-            <label htmlFor='priority'>Priority *</label>
-            <select
-              id='priority'
-              value={task.priority}
-              onChange={(e) => update('priority', e.target.value as 'low' | 'medium' | 'high')}
-            >
-              <option value='low'>Low</option>
-              <option value='medium'>Medium</option>
-              <option value='high'>High</option>
-            </select>
-          </div>
-        </div>
-
-        <div className='form-row'>
-          <div className='form-group'>
-            <label htmlFor='status'>Status *</label>
-            <select
-              id='status'
-              value={task.status}
-              onChange={(e) => update('status', e.target.value as 'todo' | 'in-progress' | 'done')}
-            >
-              <option value='todo'>To Do</option>
-              <option value='in-progress'>In Progress</option>
-              <option value='done'>Done</option>
-            </select>
-          </div>
-
-          <div className='form-group'>
-            <label htmlFor='category'>Category *</label>
-            <select
-              id='category'
-              value={task.category}
-              onChange={(e) => update('category', e.target.value as Task['category'])}
-            >
-              <option value='course'>Course</option>
-              <option value='leetcode'>LeetCode</option>
-              <option value='Internship'>Internship</option>
-              <option value='Personal'>Personal</option>
-              <option value='Household'>Household</option>
-              <option value='Miscellaneous'>Miscellaneous</option>
-            </select>
-          </div>
-        </div>
-
-        <div className='form-actions'>
-          <button
-            type='submit'
-            disabled={isSubmitting}
-            className='btn btn-primary'
-          >
-            {isSubmitting ? 'Submitting...' : 'Create Task'}
-          </button>
-          <button
-            type='button'
-            onClick={handleReset}
-            className='btn btn-secondary'
-          >
-            Reset
-          </button>
-        </div>
-      </form>
-
-      {submitted && (
-        <div className='task-summary'>
-          <h2>Task Summary</h2>
-          <div className='summary-content'>
-            <p><strong>Title:</strong> {submitted.title}</p>
-            <p><strong>Description:</strong> {submitted.description || 'N/A'}</p>
-            <p><strong>Due Date:</strong> {submitted.dueDate || 'N/A'}</p>
-            <p><strong>Priority:</strong> <span className={`priority-badge priority-${submitted.priority}`}>{submitted.priority.toUpperCase()}</span></p>
-            <p><strong>Status:</strong> <span className={`status-badge status-${submitted.status}`}>{submitted.status.replace('-', ' ').toUpperCase()}</span></p>
-            <p><strong>Category:</strong> <span className={`category-badge category-${submitted.category}`}>{submitted.category}</span></p>
-          </div>
-        </div>
-      )}
-    </div>
+            <Stack direction='row' spacing={2} justifyContent='flex-end'>
+              <Button
+                variant='outlined'
+                color='inherit'
+                onClick={handleReset}
+                sx={{ borderColor: '#9ca3af', color: '#4b5563' }}
+              >
+                Reset
+              </Button>
+              <Button variant='contained' color='primary' type='submit' sx={{ px: 4 }}>
+                Save Draft
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Paper>
+    </Container>
   )
 }
 

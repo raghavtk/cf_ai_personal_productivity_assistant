@@ -12,6 +12,11 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.1",
+		"@mui/icons-material": "^7.3.7",
+		"@mui/material": "^7.3.7",
+		"mui": "^0.0.1",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"react-router-dom": "^7.12.0"
