@@ -32,9 +32,9 @@ const Navbar = () => {
     navigate(path);
     handleCloseNavMenu();
   };
-
+// 1f2937
   return (
-    <AppBar position='fixed' sx={{ bgcolor: '#1f2937' }}>
+    <AppBar position='fixed' sx={{ bgcolor: '#232d3f' }}> 
       <Container maxWidth='lg'>
         <Toolbar disableGutters sx={{ minHeight: 64 }}>
           {/* Brand */}

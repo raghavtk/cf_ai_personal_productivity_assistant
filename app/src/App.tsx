@@ -22,10 +22,10 @@ const sampleTasks: TaskRow[] = [
 
 function Home() {
   return (
-    <div className='max-w-5xl mx-auto px-4 pt-18 pb-12 flex flex-col items-center text-center space-y-8'>
-      <div className='space-y-4'>
-        <h1 className='text-4xl font-bold text-gray-100'>Welcome to Your Personal Productivity Assistant</h1>
-        <p className='text-xl text-gray-300'>
+    <div className='max-w-5xl mx-auto px-4 pt-18 pb-12 flex flex-col items-center text-center' style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '80px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <h1 className='font-bold text-gray-100' style={{ fontSize: '40.5px' }}>Welcome to Your Personal Productivity Assistant</h1>
+        <p className='text-gray-300' style={{ fontSize: '22.5px' }}>
           Manage your tasks intelligently with AI-powered insights and natural language processing.
         </p>
       </div>

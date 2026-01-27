@@ -48,6 +48,14 @@ const subcategoryMap: Record<Category, string[]> = {
   other: ['Other'],
 }
 
+const inputSx = {
+  color: '#e5e7eb',
+  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#475569' },
+  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93c5fd' },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#38bdf8' },
+}
+const labelSx = { color: '#cbd5e1', '&.Mui-focused': { color: '#e5e7eb' } }
+
 const Tasks = () => {
   const [form, setForm] = useState<TaskForm>(initialState)
 
@@ -83,31 +91,40 @@ const Tasks = () => {
       >
         <Paper
           elevation={3}
-          sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, width: '100%', maxHeight: '80vh', overflowY: 'auto', bgcolor: 'white' }}
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: 3,
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            bgcolor: '#232d3f',
+            color: '#e5e7eb',
+          }}
         >
           <Box mb={3}>
-            <Typography variant='h5' fontWeight={700} gutterBottom>
+            <Typography variant='h5' fontWeight={700} gutterBottom sx={{ color: '#e5e7eb' }}>
               Create a Task
             </Typography>
-            <Typography variant='body2' color='text.secondary'>
-              Fill in the details. Submit will connect to D1 later.
+            <Typography variant='body2' sx={{ color: '#cbd5e1' }}>
+              fill it out, the more info, the better!
             </Typography>
           </Box>
 
           <Box component='form' onSubmit={handleSubmit} noValidate>
             <Stack spacing={3}>
-              <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth />
-              <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth />
+              <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
+              <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel id='priority-label'>Priority</InputLabel>
+                    <InputLabel id='priority-label' sx={labelSx}>Priority</InputLabel>
                     <Select
                       labelId='priority-label'
                       value={form.priority}
                       label='Priority'
                       onChange={handleSelect('priority')}
+                      sx={inputSx}
                     >
                       <MenuItem value='high'>High</MenuItem>
                       <MenuItem value='medium'>Medium</MenuItem>
@@ -117,12 +134,13 @@ const Tasks = () => {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel id='status-label'>Status</InputLabel>
+                    <InputLabel id='status-label' sx={labelSx}>Status</InputLabel>
                     <Select
                       labelId='status-label'
                       value={form.status}
                       label='Status'
                       onChange={handleSelect('status')}
+                      sx={inputSx}
                     >
                       <MenuItem value='pending'>Pending</MenuItem>
                       <MenuItem value='in_progress'>In Progress</MenuItem>
@@ -135,12 +153,13 @@ const Tasks = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel id='category-label'>Category</InputLabel>
+                    <InputLabel id='category-label' sx={labelSx}>Category</InputLabel>
                     <Select
                       labelId='category-label'
                       value={form.category}
                       label='Category'
                       onChange={handleCategoryChange}
+                      sx={inputSx}
                     >
                       <MenuItem value='work'>Work</MenuItem>
                       <MenuItem value='personal'>Personal</MenuItem>
@@ -150,12 +169,13 @@ const Tasks = () => {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel id='subcategory-label'>Subcategory</InputLabel>
+                    <InputLabel id='subcategory-label' sx={labelSx}>Subcategory</InputLabel>
                     <Select
                       labelId='subcategory-label'
                       value={form.subcategory}
                       label='Subcategory'
                       onChange={handleSelect('subcategory')}
+                      sx={inputSx}
                     >
                       {subcategoryMap[form.category].map((sub) => (
                         <MenuItem key={sub} value={sub}>
@@ -175,7 +195,8 @@ const Tasks = () => {
                     value={form.dueDate}
                     onChange={handleChange('dueDate')}
                     fullWidth
-                    InputLabelProps={{ shrink: true }}
+                    InputLabelProps={{ shrink: true, sx: labelSx }}
+                    InputProps={{ sx: inputSx }}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -186,6 +207,8 @@ const Tasks = () => {
                     value={form.estimatedDuration}
                     onChange={handleChange('estimatedDuration')}
                     fullWidth
+                    InputProps={{ sx: inputSx }}
+                    InputLabelProps={{ sx: labelSx }}
                   />
                 </Grid>
               </Grid>
@@ -199,15 +222,13 @@ const Tasks = () => {
                 minRows={2}
                 inputProps={{ maxLength: 200 }}
                 helperText={`${form.note.length}/200`}
+                InputProps={{ sx: inputSx }}
+                InputLabelProps={{ sx: labelSx }}
+                FormHelperTextProps={{ sx: { color: '#cbd5e1' } }}
               />
 
               <Stack direction='row' spacing={2} justifyContent='flex-end'>
-                <Button
-                  variant='outlined'
-                  color='inherit'
-                  onClick={handleReset}
-                  sx={{ borderColor: '#9ca3af', color: '#4b5563' }}
-                >
+                <Button variant='outlined' color='inherit' onClick={handleReset} sx={{ borderColor: '#9ca3af', color: '#e5e7eb' }}>
                   Reset
                 </Button>
                 <Button variant='contained' color='primary' type='submit' sx={{ px: 4 }}>

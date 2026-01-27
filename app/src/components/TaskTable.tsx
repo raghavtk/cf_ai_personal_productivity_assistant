@@ -90,7 +90,7 @@ const TaskTable = ({ tasks }: Props) => {
       sx={{
         p: 2,
         borderRadius: 2,
-        bgcolor: '#1f2937',
+        bgcolor: '#1a2332',
         color: '#e5e7eb',
       }}
     >
