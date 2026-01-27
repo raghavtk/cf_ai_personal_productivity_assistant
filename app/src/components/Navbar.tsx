@@ -51,7 +51,7 @@ const Navbar = () => {
               textDecoration: 'none',
             }}
           >
-            Juno
+            Eris
           </Typography>
 
           {/* Mobile menu */}
