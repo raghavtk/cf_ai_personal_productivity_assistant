@@ -22,10 +22,10 @@ const sampleTasks: TaskRow[] = [
 
 function Home() {
   return (
-    <div className='max-w-5xl mx-auto px-4 py-12 flex flex-col items-center text-center space-y-8'>
+    <div className='max-w-5xl mx-auto px-4 pt-18 pb-12 flex flex-col items-center text-center space-y-8'>
       <div className='space-y-4'>
-        <h1 className='text-4xl font-bold text-gray-800'>Welcome to Your Personal Productivity Assistant</h1>
-        <p className='text-xl text-gray-600'>
+        <h1 className='text-4xl font-bold text-gray-100'>Welcome to Your Personal Productivity Assistant</h1>
+        <p className='text-xl text-gray-300'>
           Manage your tasks intelligently with AI-powered insights and natural language processing.
         </p>
       </div>
@@ -36,9 +36,9 @@ function Home() {
 
 function App() {
   return (
-    <div className='min-h-screen bg-gray-50'>
+    <div className='min-h-screen bg-[#0f172a] flex flex-col'>
       <Navbar />
-      <main className='pt-20 px-4 flex justify-center'>
+      <main className='px-4 flex-1 flex justify-center items-start' style={{ paddingTop: '120px' }}>
         <div className='mx-auto max-w-6xl w-full py-10'>
           <Routes>
             <Route path='/' element={<Home />} />
