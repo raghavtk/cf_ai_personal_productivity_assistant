@@ -1,4 +1,4 @@
-# cf_ai_personal_productivity_assistant
+# cf_ai_eris
 
 Hello, this is a personal productivity assistant, Eris.
 
