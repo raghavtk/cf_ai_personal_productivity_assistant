@@ -17,5 +17,5 @@ name = "COMMAND_PARSER"
 class_name = "CommandParserDO"
 
 [[migrations]]
-tag = "v1"
-new_classes = ["CommandParserDO"]
+tag = "v1-sqlite"
+new_sqlite_classes = ["CommandParserDO"]

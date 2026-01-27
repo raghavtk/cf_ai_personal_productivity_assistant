@@ -14,3 +14,5 @@ Hello, this is a personal productivity assistant, Eris.
 - AI endpoints live: `/api/ai/parse-task`, `/api/ai/suggest-priority`, `/api/ai/estimate-duration`, `/api/ai/categorize-task` using Workers AI (@cf/meta/llama-3-8b-instruct).
 - Frontend services: `taskService` consumes Worker API; inline edits and deletion call backend.
 - Tests: Vitest coverage for taskService and TaskTable edit/delete logic.
+- UI polish: Batch AI action buttons styled for off-white contrast; delete action now a solid red contained button.
+- Create page: Natural language quick-add sits under the form and can hydrate fields from parsed previews.

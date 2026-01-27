@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import TaskTable, { TaskRow } from './TaskTable'
 import * as taskServiceModule from '../services/taskService'
+import { aiService } from '../services/aiService'
 
-vi.mock('../services/taskService')
+vi.mock('../services/aiService')
 
 const mockTasks: TaskRow[] = [
   {
@@ -13,84 +14,35 @@ const mockTasks: TaskRow[] = [
     priority: 'high',
     status: 'pending',
     category: 'work',
-    subcategory: 'Courses',
-    dueDate: '2024-12-31',
-    estimatedDuration: 60,
-    note: 'Test note',
+    subcategory: 'Projects',
+    dueDate: '',
+    estimatedDuration: 30,
+    note: 'note',
   },
 ]
 
-describe('TaskTable', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+describe('TaskTable selection + delete + AI actions', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('selects a row and deletes it', async () => {
+    const mockDelete = vi.spyOn(taskServiceModule.taskService, 'delete').mockResolvedValue(undefined as any)
+    render(<TaskTable tasks={mockTasks} />)
+    fireEvent.click(screen.getByRole('checkbox')) // select all
+    fireEvent.click(screen.getByText('Delete'))
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('1'))
+    await waitFor(() => expect(screen.queryByText('Test Task')).not.toBeInTheDocument())
   })
 
-  it('renders tasks correctly', () => {
-    render(<TaskTable tasks={mockTasks} />)
-    expect(screen.getByText('Test Task')).toBeInTheDocument()
-    expect(screen.getByText('Test Description')).toBeInTheDocument()
-  })
+  it('runs estimate time on selected rows (calls AI)', async () => {
+    ;(aiService.estimateDuration as any) = vi.fn().mockResolvedValue({ estimated_minutes: 30 })
+    vi.spyOn(taskServiceModule.taskService, 'update').mockResolvedValue({} as any)
 
-  it('enters edit mode when Edit button clicked', async () => {
     render(<TaskTable tasks={mockTasks} />)
-    const editButton = screen.getByText('Edit')
-    fireEvent.click(editButton)
-    
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Task')).toBeInTheDocument()
-      expect(screen.getByText('Save')).toBeInTheDocument()
-      expect(screen.getByText('Cancel')).toBeInTheDocument()
-    })
-  })
-
-  it('calls API when saving edits', async () => {
-    const mockUpdate = vi.spyOn(taskServiceModule.taskService, 'update').mockResolvedValue({} as any)
-    
-    render(<TaskTable tasks={mockTasks} />)
-    
-    // Enter edit mode
-    fireEvent.click(screen.getByText('Edit'))
-    
-    // Modify title
-    const titleInput = screen.getByDisplayValue('Test Task')
-    fireEvent.change(titleInput, { target: { value: 'Updated Task' } })
-    
-    // Save
-    fireEvent.click(screen.getByText('Save'))
-    
-    await waitFor(() => {
-      expect(mockUpdate).toHaveBeenCalledWith('1', expect.objectContaining({
-        title: 'Updated Task',
-      }))
-    })
-  })
-
-  it('cancels edit without saving', async () => {
-    render(<TaskTable tasks={mockTasks} />)
-    
-    fireEvent.click(screen.getByText('Edit'))
-    const titleInput = screen.getByDisplayValue('Test Task')
-    fireEvent.change(titleInput, { target: { value: 'Should Not Save' } })
-    
-    fireEvent.click(screen.getByText('Cancel'))
-    
-    await waitFor(() => {
-      expect(screen.getByText('Test Task')).toBeInTheDocument()
-      expect(screen.queryByDisplayValue('Should Not Save')).not.toBeInTheDocument()
-    })
-  })
-
-  it('deletes a task and updates UI', async () => {
-    render(<TaskTable tasks={mockTasks} />)
-    const deleteBtn = screen.getByText('Delete')
-    fireEvent.click(deleteBtn)
+    fireEvent.click(screen.getByRole('checkbox')) // select all
+    fireEvent.click(screen.getByText('Estimate Time'))
 
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalledWith('1')
-    })
-    // after delete the row disappears
-    await waitFor(() => {
-      expect(screen.queryByText('Test Task')).not.toBeInTheDocument()
+      expect(aiService.estimateDuration).toHaveBeenCalled()
     })
   })
 })

@@ -1,0 +1,134 @@
+import { useState } from 'react'
+import { Paper, Stack, TextField, Button, Typography, Divider, Chip, Box } from '@mui/material'
+import { aiService } from '../services/aiService'
+
+type ParsedTask = {
+  title?: string
+  description?: string
+  priority?: string
+  due_date?: string
+  category?: string
+  subcategory?: string
+  estimated_duration?: number
+  note?: string | null
+}
+
+type Props = {
+  onSavePreview?: (task: ParsedTask) => void
+}
+
+const NaturalLanguageInput = ({ onSavePreview }: Props) => {
+  const [input, setInput] = useState('')
+  const [preview, setPreview] = useState<ParsedTask | null>(null)
+  const [history, setHistory] = useState<ParsedTask[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleParse = async () => {
+    if (!input.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await aiService.parseTask(input)
+      const parsed = typeof res === 'string' ? JSON.parse(res) : res.parsed || res
+      setPreview(parsed)
+      setHistory((h) => [...h.slice(-4), parsed])
+    } catch (e: any) {
+      setError(e?.message || 'Parse failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUsePreview = () => {
+    if (preview && onSavePreview) onSavePreview(preview)
+  }
+
+  return (
+    <Paper sx={{ p: 3, bgcolor: '#111827', color: '#e5e7eb', borderRadius: 3, width: '100%' }} elevation={3}>
+      <Stack spacing={2} alignItems='center'>
+        <TextField
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder='e.g., Finish the report by Friday, high priority'
+          fullWidth
+          InputProps={{
+            sx: {
+              borderRadius: '999px',
+              bgcolor: '#0f172a',
+              color: '#e5e7eb',
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: '#475569' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93c5fd' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#38bdf8' },
+              px: 2,
+            },
+          }}
+          variant='outlined'
+        />
+        <Stack direction='row' spacing={2}>
+          <Button
+            variant='contained'
+            onClick={handleParse}
+            disabled={loading}
+            sx={{ textTransform: 'none', color: '#e5e7eb' }}
+          >
+            {loading ? 'Parsing...' : 'Parse'}
+          </Button>
+          <Button
+            variant='outlined'
+            onClick={() => setInput('')}
+            disabled={loading}
+            sx={{ textTransform: 'none', color: '#e5e7eb', borderColor: '#e5e7eb' }}
+          >
+            Clear
+          </Button>
+          <Button
+            variant='outlined'
+            onClick={handleUsePreview}
+            disabled={!preview || loading}
+            sx={{ textTransform: 'none', color: '#e5e7eb', borderColor: '#e5e7eb' }}
+          >
+            Use Preview
+          </Button>
+        </Stack>
+
+        {error && <Typography color='error'>{error}</Typography>}
+
+        {preview && (
+          <Box sx={{ width: '100%', bgcolor: '#0f172a', p: 2, borderRadius: 2, border: '1px solid #1f2937' }}>
+            <Typography variant='subtitle1' sx={{ mb: 1 }}>
+              Parsed Preview
+            </Typography>
+            <Stack spacing={0.5} sx={{ color: '#cbd5e1', fontSize: 14 }}>
+              <span>Title: {preview.title}</span>
+              <span>Description: {preview.description}</span>
+              <span>Priority: {preview.priority}</span>
+              <span>Due Date: {preview.due_date}</span>
+              <span>Category: {preview.category}</span>
+              <span>Subcategory: {preview.subcategory}</span>
+              <span>Est. Duration: {preview.estimated_duration}</span>
+            </Stack>
+          </Box>
+        )}
+
+        {history.length > 0 && (
+          <>
+            <Divider sx={{ width: '100%', borderColor: '#1f2937' }}>Recent Parses</Divider>
+            <Stack direction='row' spacing={1} flexWrap='wrap' justifyContent='center'>
+              {history.slice().reverse().map((h, idx) => (
+                <Chip
+                  key={idx}
+                  label={h.title || 'Untitled'}
+                  onClick={() => setPreview(h)}
+                  sx={{ bgcolor: '#1f2937', color: '#e5e7eb' }}
+                />
+              ))}
+            </Stack>
+          </>
+        )}
+      </Stack>
+    </Paper>
+  )
+}
+
+export default NaturalLanguageInput

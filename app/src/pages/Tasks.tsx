@@ -15,6 +15,7 @@ import {
 } from '@mui/material'
 import { taskService } from '../services/taskService'
 import { useNavigate } from 'react-router-dom'
+import NaturalLanguageInput from '../components/NaturalLanguageInput'
 
 type Category = 'work' | 'personal' | 'other'
 type Priority = 'high' | 'medium' | 'low'
@@ -30,6 +31,17 @@ type TaskForm = {
   estimatedDuration: string
   status: Status
   note: string
+}
+
+type ParsedTask = {
+  title?: string
+  description?: string
+  priority?: string
+  category?: string
+  subcategory?: string
+  due_date?: string
+  estimated_duration?: number
+  note?: string | null
 }
 
 const initialState: TaskForm = {
@@ -104,37 +116,52 @@ const Tasks = () => {
 
   const handleReset = () => setForm(initialState)
 
+  const handleParsedPreview = (parsed: ParsedTask) => {
+    setForm((prev) => ({
+      ...prev,
+      title: parsed.title ?? prev.title,
+      description: parsed.description ?? prev.description,
+      priority: (parsed.priority as Priority) ?? prev.priority,
+      category: (parsed.category as Category) ?? prev.category,
+      subcategory: parsed.subcategory ?? prev.subcategory,
+      dueDate: parsed.due_date ?? prev.dueDate,
+      estimatedDuration:
+        parsed.estimated_duration !== undefined
+          ? String(parsed.estimated_duration)
+          : prev.estimatedDuration,
+      note: parsed.note ?? prev.note,
+    }))
+  }
+
   return (
     <Box sx={{ bgcolor: '#0f172a', minHeight: 'calc(100vh - 80px)', py: 4 }}>
-      <Container
-        maxWidth='md'
-        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: 3,
-            width: '100%',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-            bgcolor: '#232d3f',
-            color: '#e5e7eb',
-          }}
-        >
-          <Box mb={3}>
-            <Typography variant='h5' fontWeight={700} gutterBottom sx={{ color: '#e5e7eb' }}>
-              Create a Task
-            </Typography>
-            <Typography variant='body2' sx={{ color: '#cbd5e1' }}>
-              fill it out, the more info, the better!
-            </Typography>
-          </Box>
+      <Container maxWidth='md' sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+        <Stack spacing={3} sx={{ width: '100%' }}>
+          <Paper
+            elevation={3}
+            sx={{
+              p: { xs: 3, md: 4 },
+              borderRadius: 3,
+              width: '100%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              bgcolor: '#232d3f',
+              color: '#e5e7eb',
+            }}
+          >
+            <Box mb={3}>
+              <Typography variant='h5' fontWeight={700} gutterBottom sx={{ color: '#e5e7eb' }}>
+                Create a Task
+              </Typography>
+              <Typography variant='body2' sx={{ color: '#cbd5e1' }}>
+                fill it out, the more info, the better!
+              </Typography>
+            </Box>
 
-          <Box component='form' onSubmit={handleSubmit} noValidate>
-            <Stack spacing={3}>
-              <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
-              <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
+            <Box component='form' onSubmit={handleSubmit} noValidate>
+              <Stack spacing={3}>
+                <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
+                <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
 
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
@@ -248,17 +275,25 @@ const Tasks = () => {
                 FormHelperTextProps={{ sx: { color: '#cbd5e1' } }}
               />
 
-              <Stack direction='row' spacing={2} justifyContent='flex-end'>
-                <Button variant='outlined' color='inherit' onClick={handleReset} sx={{ borderColor: '#9ca3af', color: '#e5e7eb' }}>
-                  Reset
-                </Button>
-                <Button variant='contained' color='primary' type='submit' sx={{ px: 4 }}>
-                  Create Task
-                </Button>
+                <Stack direction='row' spacing={2} justifyContent='flex-end'>
+                  <Button variant='outlined' color='inherit' onClick={handleReset} sx={{ borderColor: '#9ca3af', color: '#e5e7eb' }}>
+                    Reset
+                  </Button>
+                  <Button variant='contained' color='primary' type='submit' sx={{ px: 4 }}>
+                    Create Task
+                  </Button>
+                </Stack>
               </Stack>
-            </Stack>
+            </Box>
+          </Paper>
+
+          <Box>
+            <Typography variant='h5' fontWeight={700} sx={{ mb: 2, color: '#e5e7eb', mt: 3 }}>
+              Add a task quickly!
+            </Typography>
+            <NaturalLanguageInput onSavePreview={handleParsedPreview} />
           </Box>
-        </Paper>
+        </Stack>
       </Container>
     </Box>
   )

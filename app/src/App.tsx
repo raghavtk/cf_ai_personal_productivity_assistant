@@ -1,10 +1,11 @@
 import './App.css'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import Navbar from './components/Navbar'
 import Tasks from './pages/Tasks'
 import ViewTasks from './pages/ViewTasks'
 import TaskTable, { TaskRow } from './components/TaskTable'
+import NaturalLanguageInput from './components/NaturalLanguageInput'
 import { taskService } from './services/taskService'
 
 function Home() {
@@ -15,7 +16,7 @@ function Home() {
     taskService
       .getAll()
       .then((data) => {
-        const mapped: TaskRow[] = data.map((t) => ({
+        const mapped: TaskRow[] = data.map((t: any) => ({
           id: t.id,
           title: t.title,
           description: t.description,
@@ -29,19 +30,56 @@ function Home() {
         }))
         setTasks(mapped)
       })
-      .catch((err) => console.error(err))
+      .catch((err) => {
+        console.error(err)
+        // fallback demo data so UI renders
+        setTasks([
+          {
+            id: 'demo-1',
+            title: 'Demo Task',
+            description: 'Fallback task',
+            priority: 'medium',
+            status: 'pending',
+            category: 'work',
+            subcategory: 'Projects',
+            dueDate: '',
+            estimatedDuration: 60,
+            note: 'Demo',
+          },
+        ])
+      })
       .finally(() => setLoading(false))
   }, [])
 
+  const handlePreview = (parsed: any) => {
+    // You can later pipe this to a pre-fill modal; for now, just log.
+    console.log('Parsed preview', parsed)
+  }
+
   return (
-    <div className='max-w-5xl mx-auto px-4 pt-18 pb-12 flex flex-col items-center text-center' style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '80px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        <h1 className='font-bold text-gray-100' style={{ fontSize: '40.5px' }}>Welcome to Your Personal Productivity Assistant, Eris.</h1>
-        <p className='text-gray-300' style={{ fontSize: '22.5px' }}>
+    <div className='max-w-6xl mx-auto px-4 pt-24 pb-12 flex flex-col items-center text-center gap-12'>
+      <div className='flex flex-col gap-4'>
+        <h1 className='font-bold text-gray-100' style={{ fontSize: '40px', fontFamily: 'Helvetica, Arial, sans-serif' }}>
+          Welcome to Your Personal Productivity Assistant, Eris.
+        </h1>
+        <p className='text-gray-300' style={{ fontSize: '22px', fontFamily: 'Helvetica, Arial, sans-serif' }}>
           Manage your tasks intelligently with AI-powered insights and natural language processing.
         </p>
       </div>
-      {loading ? <p className='text-gray-300'>Loading tasks...</p> : <TaskTable tasks={tasks} />}
+
+      <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: '900px' }}>
+          <NaturalLanguageInput onSavePreview={handlePreview} />
+        </div>
+      </div>
+
+      <div style={{ width: '100%' }}>
+        {loading ? (
+          <p className='text-gray-300' style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>Loading tasks...</p>
+        ) : (
+          <TaskTable tasks={tasks} />
+        )}
+      </div>
     </div>
   )
 }
@@ -50,7 +88,7 @@ function App() {
   return (
     <div className='min-h-screen bg-[#0f172a] flex flex-col'>
       <Navbar />
-      <main className='px-4 flex-1 flex justify-center items-start' style={{ paddingTop: '120px' }}>
+      <main className='px-4 flex-1 flex justify-center items-start overflow-auto' style={{ paddingTop: '96px' }}>
         <div className='mx-auto max-w-6xl w-full py-10'>
           <Routes>
             <Route path='/' element={<Home />} />

@@ -1,9 +1,8 @@
-import { useMemo, useState, ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Box,
   Button,
-  Grid,
-  MenuItem,
+  Checkbox,
   Paper,
   Stack,
   Table,
@@ -12,9 +11,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
+import { aiService } from '../services/aiService'
 import { taskService } from '../services/taskService'
 
 export type TaskRow = {
@@ -35,61 +34,25 @@ type Props = {
   onDeleted?: (id: string) => void
 }
 
-const subcategoryMap: Record<TaskRow['category'], string[]> = {
-  work: ['Courses', 'Internship', 'Projects'],
-  personal: ['Health', 'Social', 'Finance', 'Chores'],
-  other: ['Other'],
-}
-
 const TaskTable = ({ tasks, onDeleted }: Props) => {
   const [rows, setRows] = useState<TaskRow[]>(tasks)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Partial<TaskRow>>({})
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [aiMessage, setAiMessage] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const startEdit = (id: string) => {
-    const found = rows.find((r) => r.id === id)
-    if (!found) return
-    setEditingId(id)
-    setDraft(found)
-  }
+  useEffect(() => {
+    setRows(tasks)
+    setSelected(new Set())
+  }, [tasks])
 
-  const cancelEdit = () => {
-    setEditingId(null)
-    setDraft({})
-  }
+  const selectedTasks = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected])
 
-  const handleChange =
-    (field: keyof TaskRow) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = e.target.value
-      setDraft((prev) => ({ ...prev, [field]: value }))
-      if (field === 'category') {
-        const firstSub = subcategoryMap[value as TaskRow['category']][0]
-        setDraft((prev) => ({ ...prev, subcategory: firstSub }))
-      }
-    }
-
-  const saveEdit = async () => {
-    if (!editingId) return
-    try {
-      await taskService.update(editingId, {
-        title: draft.title,
-        description: draft.description,
-        priority: draft.priority,
-        status: draft.status,
-        category: draft.category,
-        subcategory: draft.subcategory,
-        due_date: draft.dueDate,
-        estimated_duration: draft.estimatedDuration,
-        note: draft.note,
-      } as any)
-      setRows((prev) => prev.map((r) => (r.id === editingId ? { ...r, ...draft } as TaskRow : r)))
-      setEditingId(null)
-      setDraft({})
-    } catch (error) {
-      console.error('Failed to save task:', error)
-      alert('Failed to save changes')
-    }
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
   }
 
   const handleDelete = async (id: string) => {
@@ -97,224 +60,223 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
       await taskService.delete(id)
       setRows((prev) => prev.filter((r) => r.id !== id))
       onDeleted?.(id)
-    } catch (error) {
-      console.error('Failed to delete task:', error)
+    } catch (err) {
+      console.error(err)
       alert('Failed to delete task')
     }
   }
 
-  const currentSubcategories = useMemo(() => {
-    if (draft.category && draft.category in subcategoryMap) {
-      return subcategoryMap[draft.category as TaskRow['category']]
+  const runEstimate = async () => {
+    if (!selectedTasks.length) return
+    setBusy(true)
+    try {
+      const updates = await Promise.all(
+        selectedTasks.map(async (t) => {
+          const res = await aiService.estimateDuration({ title: t.title, description: t.description })
+          const est = res.estimated_minutes ?? res.estimated_duration ?? res.estimatedMinutes ?? 0
+          await taskService.update(t.id, { estimated_duration: est } as any)
+          return { id: t.id, estimatedDuration: est }
+        }),
+      )
+      setRows((prev) =>
+        prev.map((r) => {
+          const found = updates.find((u) => u.id === r.id)
+          return found ? { ...r, estimatedDuration: found.estimatedDuration } : r
+        }),
+      )
+      setAiMessage('Time estimation updated for selected tasks.')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to estimate time')
+    } finally {
+      setBusy(false)
     }
-    const base = rows.find((r) => r.id === editingId)?.category || 'work'
-    return subcategoryMap[base]
-  }, [draft.category, editingId, rows])
+  }
+
+  const runCategorize = async () => {
+    if (!selectedTasks.length) return
+    setBusy(true)
+    try {
+      const updates = await Promise.all(
+        selectedTasks.map(async (t) => {
+          const res = await aiService.categorizeTask({ title: t.title, description: t.description })
+          const category = res.category ?? t.category
+          const subcategory = res.subcategory ?? t.subcategory
+          await taskService.update(t.id, { category, subcategory } as any)
+          return { id: t.id, category, subcategory }
+        }),
+      )
+      setRows((prev) =>
+        prev.map((r) => {
+          const found = updates.find((u) => u.id === r.id)
+          return found ? { ...r, category: found.category as any, subcategory: found.subcategory } : r
+        }),
+      )
+      setAiMessage('Categorization updated for selected tasks.')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to categorize tasks')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const runPriority = async () => {
+    if (!selectedTasks.length) return
+    setBusy(true)
+    try {
+      const updates = await Promise.all(
+        selectedTasks.map(async (t) => {
+          const res = await aiService.suggestPriority({ title: t.title, description: t.description, due_date: t.dueDate })
+          const priority = res.priority ?? t.priority
+          await taskService.update(t.id, { priority } as any)
+          return { id: t.id, priority }
+        }),
+      )
+      setRows((prev) =>
+        prev.map((r) => {
+          const found = updates.find((u) => u.id === r.id)
+          return found ? { ...r, priority: found.priority as any } : r
+        }),
+      )
+      setAiMessage('Priority updated for selected tasks.')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to assign priority')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
-    <Paper
-      elevation={2}
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: '#1a2332',
-        color: '#e5e7eb',
-      }}
-    >
+    <Paper elevation={2} sx={{ p: 2, borderRadius: 2, bgcolor: '#1f2937', color: '#e5e7eb' }}>
       <Stack direction='row' alignItems='center' justifyContent='space-between' mb={2}>
         <Typography variant='h6' fontWeight={700}>
           Tasks
         </Typography>
-        <Typography variant='body2' sx={{ color: '#cbd5e1' }}>
-          Inline editable. Note max 200 chars.
-        </Typography>
+        <Stack direction='row' spacing={1}>
+          <Button
+            variant='contained'
+            size='small'
+            onClick={runEstimate}
+            disabled={!selectedTasks.length || busy}
+            sx={{
+              color: '#f8fafc',
+              borderColor: '#f8fafc',
+              fontFamily: 'Helvetica, Arial, sans-serif',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': { borderColor: '#f1f5f9', bgcolor: 'rgba(248,250,252,0.08)' },
+            }}
+          >
+            Estimate time
+          </Button>
+          <Button
+            variant='contained'
+            size='small'
+            onClick={runPriority}
+            disabled={!selectedTasks.length || busy}
+            sx={{
+              color: '#f8fafc',
+              borderColor: '#f8fafc',
+              fontFamily: 'Helvetica, Arial, sans-serif',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': { borderColor: '#f1f5f9', bgcolor: 'rgba(94, 95, 92, 0.08)' },
+            }}
+          >
+            Assign priority
+          </Button>
+          <Button
+            variant='contained'
+            size='small'
+            onClick={runCategorize}
+            disabled={!selectedTasks.length || busy}
+            sx={{
+              color: '#f8fafc',
+              borderColor: '#f8fafc',
+              fontFamily: 'Helvetica, Arial, sans-serif',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&:hover': { borderColor: '#f1f5f9', bgcolor: 'rgba(248,250,252,0.08)' },
+            }}
+          >
+            Categorize tasks
+          </Button>
+        </Stack>
       </Stack>
+      {aiMessage && (
+        <Typography variant='body2' sx={{ mb: 1, color: '#cbd5e1', fontFamily: 'Helvetica, Arial, sans-serif' }}>
+          {aiMessage}
+        </Typography>
+      )}
       <TableContainer sx={{ maxHeight: 480 }}>
         <Table stickyHeader size='small'>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Title</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Description</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Priority</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Status</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Category</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Subcategory</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Due Date</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Est. (min)</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }}>Note</TableCell>
-              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb', borderBottomColor: 'rgba(255,255,255,0.12)' }} align='right'>Actions</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }} padding='checkbox'>
+                <Checkbox
+                  size='small'
+                  sx={{ color: '#e5e7eb' }}
+                  indeterminate={selected.size > 0 && selected.size < rows.length}
+                  checked={selected.size === rows.length && rows.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelected(new Set(rows.map((r) => r.id)))
+                    else setSelected(new Set())
+                  }}
+                />
+              </TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Title</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Description</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Priority</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Status</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Category</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Subcategory</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Due Date</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Est. (min)</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }}>Note</TableCell>
+              <TableCell sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#e5e7eb' }} align='right'>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.map((row) => {
-              const isEditing = editingId === row.id
+              const isSelected = selected.has(row.id)
               return (
-                <TableRow key={row.id} hover>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        size='small'
-                        value={draft.title || ''}
-                        onChange={handleChange('title')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      />
-                    ) : (
-                      row.title
-                    )}
+                <TableRow key={row.id} hover selected={isSelected}>
+                  <TableCell padding='checkbox' sx={{ color: '#e5e7eb' }}>
+                    <Checkbox
+                      size='small'
+                      sx={{ color: '#e5e7eb' }}
+                      checked={isSelected}
+                      onChange={() => toggleSelect(row.id)}
+                    />
                   </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        size='small'
-                        value={draft.description || ''}
-                        onChange={handleChange('description')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      />
-                    ) : (
-                      row.description
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        select
-                        size='small'
-                        value={draft.priority || row.priority}
-                        onChange={handleChange('priority')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      >
-                        <MenuItem value='high'>High</MenuItem>
-                        <MenuItem value='medium'>Medium</MenuItem>
-                        <MenuItem value='low'>Low</MenuItem>
-                      </TextField>
-                    ) : (
-                      row.priority
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        select
-                        size='small'
-                        value={draft.status || row.status}
-                        onChange={handleChange('status')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      >
-                        <MenuItem value='pending'>Pending</MenuItem>
-                        <MenuItem value='in_progress'>In Progress</MenuItem>
-                        <MenuItem value='completed'>Completed</MenuItem>
-                        <MenuItem value='cancelled'>Cancelled</MenuItem>
-                      </TextField>
-                    ) : (
-                      row.status
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        select
-                        size='small'
-                        value={(draft.category as TaskRow['category']) || row.category}
-                        onChange={handleChange('category')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      >
-                        <MenuItem value='work'>Work</MenuItem>
-                        <MenuItem value='personal'>Personal</MenuItem>
-                        <MenuItem value='other'>Other</MenuItem>
-                      </TextField>
-                    ) : (
-                      row.category
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        select
-                        size='small'
-                        value={draft.subcategory || row.subcategory}
-                        onChange={handleChange('subcategory')}
-                        fullWidth
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      >
-                        {currentSubcategories.map((sub) => (
-                          <MenuItem key={sub} value={sub}>
-                            {sub}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    ) : (
-                      row.subcategory
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        type='date'
-                        size='small'
-                        value={draft.dueDate || row.dueDate}
-                        onChange={handleChange('dueDate')}
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      />
-                    ) : (
-                      row.dueDate || '—'
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        type='number'
-                        size='small'
-                        value={draft.estimatedDuration ?? row.estimatedDuration}
-                        onChange={handleChange('estimatedDuration')}
-                        fullWidth
-                        inputProps={{ min: 0 }}
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      />
-                    ) : (
-                      row.estimatedDuration
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ minWidth: 180, color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <TextField
-                        size='small'
-                        value={draft.note || ''}
-                        onChange={handleChange('note')}
-                        fullWidth
-                        inputProps={{ maxLength: 200 }}
-                        InputProps={{ sx: { color: '#e5e7eb' } }}
-                      />
-                    ) : (
-                      row.note
-                    )}
-                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.title}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.description}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.priority}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.status}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.category}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.subcategory}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.dueDate || '—'}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>{row.estimatedDuration ?? '—'}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb', maxWidth: 180 }}>{row.note}</TableCell>
                   <TableCell align='right' sx={{ color: '#e5e7eb' }}>
-                    {isEditing ? (
-                      <Stack direction='row' spacing={1} justifyContent='flex-end'>
-                        <Button size='small' variant='outlined' onClick={cancelEdit} sx={{ color: '#e5e7eb', borderColor: 'rgba(255,255,255,0.4)' }}>
-                          Cancel
-                        </Button>
-                        <Button size='small' variant='contained' onClick={saveEdit}>
-                          Save
-                        </Button>
-                      </Stack>
-                    ) : (
-                      <Stack direction='row' spacing={1} justifyContent='flex-end'>
-                        <Button size='small' variant='text' onClick={() => startEdit(row.id)} sx={{ color: '#e5e7eb' }}>
-                          Edit
-                        </Button>
-                        <Button size='small' variant='outlined' color='error' onClick={() => handleDelete(row.id)}>
-                          Delete
-                        </Button>
-                      </Stack>
-                    )}
+                    <Button
+                      size='small'
+                      variant='contained'
+                      color='error'
+                      onClick={() => handleDelete(row.id)}
+                      sx={{
+                        textTransform: 'none',
+                        bgcolor: '#b91c1c',
+                        color: '#f8fafc',
+                        fontWeight: 600,
+                        fontFamily: 'Helvetica, Arial, sans-serif',
+                        '&:hover': { bgcolor: '#dc2626' },
+                      }}
+                    >
+                      Delete
+                    </Button>
                   </TableCell>
                 </TableRow>
               )
