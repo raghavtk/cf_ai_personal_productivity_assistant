@@ -8,8 +8,8 @@ binding = "AI"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "productivity_db"
-database_id = "YOUR_D1_DB_ID"
+database_name = "productivity-db"
+database_id = "3bfde29c-eff5-4a2c-9f7e-544c78849f4e"
 migrations_dir = "db/migrations"
 
 [vars]
