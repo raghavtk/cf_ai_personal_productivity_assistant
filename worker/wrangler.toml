@@ -1,0 +1,16 @@
+name = "productivity-assistant-worker"
+main = "src/index.ts"
+compatibility_date = "2024-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "productivity_db"
+database_id = "YOUR_D1_DB_ID"
+migrations_dir = "db/migrations"
+
+[vars]
+ENV = "development"
