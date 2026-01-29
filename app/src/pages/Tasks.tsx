@@ -1,9 +1,9 @@
-import { useState, FormEvent, ChangeEvent } from 'react'
+import { useState } from 'react'
+import type { FormEvent, ChangeEvent } from 'react'
 import {
   Box,
   Button,
   Container,
-  Grid,
   MenuItem,
   Paper,
   Stack,
@@ -13,6 +13,7 @@ import {
   InputLabel,
   Select,
 } from '@mui/material'
+import type { SelectChangeEvent } from '@mui/material'
 import { taskService } from '../services/taskService'
 import { useNavigate } from 'react-router-dom'
 import NaturalLanguageInput from '../components/NaturalLanguageInput'
@@ -78,11 +79,10 @@ const Tasks = () => {
     (field: keyof TaskForm) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
-  const handleSelect =
-    (field: keyof TaskForm) => (e: ChangeEvent<{ value: unknown }>) =>
-      setForm((prev) => ({ ...prev, [field]: e.target.value as string }))
+  const handleSelect = (field: keyof TaskForm) => (e: SelectChangeEvent<string>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value as string }))
 
-  const handleCategoryChange = (e: ChangeEvent<{ value: unknown }>) => {
+  const handleCategoryChange = (e: SelectChangeEvent<string>) => {
     const value = e.target.value as Category
     setForm((prev) => ({
       ...prev,
@@ -163,103 +163,91 @@ const Tasks = () => {
                 <TextField label='Title' value={form.title} onChange={handleChange('title')} required fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
                 <TextField label='Description' value={form.description} onChange={handleChange('description')} fullWidth InputProps={{ sx: inputSx }} InputLabelProps={{ sx: labelSx }} />
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id='priority-label' sx={labelSx}>Priority</InputLabel>
-                    <Select
-                      labelId='priority-label'
-                      value={form.priority}
-                      label='Priority'
-                      onChange={handleSelect('priority')}
-                      sx={inputSx}
-                    >
-                      <MenuItem value='high'>High</MenuItem>
-                      <MenuItem value='medium'>Medium</MenuItem>
-                      <MenuItem value='low'>Low</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id='status-label' sx={labelSx}>Status</InputLabel>
-                    <Select
-                      labelId='status-label'
-                      value={form.status}
-                      label='Status'
-                      onChange={handleSelect('status')}
-                      sx={inputSx}
-                    >
-                      <MenuItem value='pending'>Pending</MenuItem>
-                      <MenuItem value='in_progress'>In Progress</MenuItem>
-                      <MenuItem value='completed'>Completed</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+              <Box display='grid' gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                <FormControl fullWidth>
+                  <InputLabel id='priority-label' sx={labelSx}>Priority</InputLabel>
+                  <Select
+                    labelId='priority-label'
+                    value={form.priority}
+                    label='Priority'
+                    onChange={handleSelect('priority')}
+                    sx={inputSx}
+                  >
+                    <MenuItem value='high'>High</MenuItem>
+                    <MenuItem value='medium'>Medium</MenuItem>
+                    <MenuItem value='low'>Low</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id='status-label' sx={labelSx}>Status</InputLabel>
+                  <Select
+                    labelId='status-label'
+                    value={form.status}
+                    label='Status'
+                    onChange={handleSelect('status')}
+                    sx={inputSx}
+                  >
+                    <MenuItem value='pending'>Pending</MenuItem>
+                    <MenuItem value='in_progress'>In Progress</MenuItem>
+                    <MenuItem value='completed'>Completed</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id='category-label' sx={labelSx}>Category</InputLabel>
-                    <Select
-                      labelId='category-label'
-                      value={form.category}
-                      label='Category'
-                      onChange={handleCategoryChange}
-                      sx={inputSx}
-                    >
-                      <MenuItem value='work'>Work</MenuItem>
-                      <MenuItem value='personal'>Personal</MenuItem>
-                      <MenuItem value='other'>Other</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id='subcategory-label' sx={labelSx}>Subcategory</InputLabel>
-                    <Select
-                      labelId='subcategory-label'
-                      value={form.subcategory}
-                      label='Subcategory'
-                      onChange={handleSelect('subcategory')}
-                      sx={inputSx}
-                    >
-                      {subcategoryMap[form.category].map((sub) => (
-                        <MenuItem key={sub} value={sub}>
-                          {sub}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+              <Box display='grid' gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                <FormControl fullWidth>
+                  <InputLabel id='category-label' sx={labelSx}>Category</InputLabel>
+                  <Select
+                    labelId='category-label'
+                    value={form.category}
+                    label='Category'
+                    onChange={handleCategoryChange}
+                    sx={inputSx}
+                  >
+                    <MenuItem value='work'>Work</MenuItem>
+                    <MenuItem value='personal'>Personal</MenuItem>
+                    <MenuItem value='other'>Other</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <InputLabel id='subcategory-label' sx={labelSx}>Subcategory</InputLabel>
+                  <Select
+                    labelId='subcategory-label'
+                    value={form.subcategory}
+                    label='Subcategory'
+                    onChange={handleSelect('subcategory')}
+                    sx={inputSx}
+                  >
+                    {subcategoryMap[form.category].map((sub) => (
+                      <MenuItem key={sub} value={sub}>
+                        {sub}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label='Due Date'
-                    type='date'
-                    value={form.dueDate}
-                    onChange={handleChange('dueDate')}
-                    fullWidth
-                    InputLabelProps={{ shrink: true, sx: labelSx }}
-                    InputProps={{ sx: inputSx }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label='Estimated Duration (minutes)'
-                    type='number'
-                    inputProps={{ min: 0 }}
-                    value={form.estimatedDuration}
-                    onChange={handleChange('estimatedDuration')}
-                    fullWidth
-                    InputProps={{ sx: inputSx }}
-                    InputLabelProps={{ sx: labelSx }}
-                  />
-                </Grid>
-              </Grid>
+              <Box display='grid' gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={2}>
+                <TextField
+                  label='Due Date'
+                  type='date'
+                  value={form.dueDate}
+                  onChange={handleChange('dueDate')}
+                  fullWidth
+                  InputLabelProps={{ shrink: true, sx: labelSx }}
+                  InputProps={{ sx: inputSx }}
+                />
+                <TextField
+                  label='Estimated Duration (minutes)'
+                  type='number'
+                  inputProps={{ min: 0 }}
+                  value={form.estimatedDuration}
+                  onChange={handleChange('estimatedDuration')}
+                  fullWidth
+                  InputProps={{ sx: inputSx }}
+                  InputLabelProps={{ sx: labelSx }}
+                />
+              </Box>
 
               <TextField
                 label='Note (max 200 chars)'

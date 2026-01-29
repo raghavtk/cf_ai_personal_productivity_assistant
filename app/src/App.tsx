@@ -1,10 +1,11 @@
 import './App.css'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Tasks from './pages/Tasks'
 import ViewTasks from './pages/ViewTasks'
-import TaskTable, { TaskRow } from './components/TaskTable'
+import TaskTable from './components/TaskTable'
+import type { TaskRow } from './components/TaskTable'
 import NaturalLanguageInput from './components/NaturalLanguageInput'
 import { taskService } from './services/taskService'
 
@@ -60,7 +61,7 @@ function Home() {
     <div className='max-w-6xl mx-auto px-4 pt-24 pb-12 flex flex-col items-center text-center gap-12'>
       <div className='flex flex-col gap-4'>
         <h1 className='font-bold text-gray-100' style={{ fontSize: '40px', fontFamily: 'Helvetica, Arial, sans-serif' }}>
-          Welcome to Your Personal Productivity Assistant, Eris.
+          Welcome to your Personal Productivity Assistant, Eris.
         </h1>
         <p className='text-gray-300' style={{ fontSize: '22px', fontFamily: 'Helvetica, Arial, sans-serif' }}>
           Manage your tasks intelligently with AI-powered insights and natural language processing.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Paper, Stack, TextField, Button, Typography, Divider, Chip, Box } from '@mui/material'
 import { aiService } from '../services/aiService'
+import { taskService } from '../services/taskService'
 
 type ParsedTask = {
   title?: string
@@ -22,7 +23,9 @@ const NaturalLanguageInput = ({ onSavePreview }: Props) => {
   const [preview, setPreview] = useState<ParsedTask | null>(null)
   const [history, setHistory] = useState<ParsedTask[]>([])
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const handleParse = async () => {
     if (!input.trim()) return
@@ -41,7 +44,30 @@ const NaturalLanguageInput = ({ onSavePreview }: Props) => {
   }
 
   const handleUsePreview = () => {
-    if (preview && onSavePreview) onSavePreview(preview)
+    if (!preview) return
+    const payload = {
+      title: preview.title || 'Untitled task',
+      description: preview.description || '',
+      priority: (preview.priority as any) || 'medium',
+      status: 'pending',
+      category: (preview.category as any) || 'work',
+      subcategory: preview.subcategory || 'Courses',
+      due_date: preview.due_date || '',
+      estimated_duration: typeof preview.estimated_duration === 'number' ? preview.estimated_duration : 0,
+      note: preview.note ?? '',
+    }
+
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
+    taskService
+      .create(payload as any)
+      .then(() => {
+        setSuccess('Task created from preview')
+        onSavePreview?.(preview)
+      })
+      .catch((e) => setError(e?.message || 'Failed to create task'))
+      .finally(() => setSaving(false))
   }
 
   return (
@@ -85,17 +111,18 @@ const NaturalLanguageInput = ({ onSavePreview }: Props) => {
           <Button
             variant='outlined'
             onClick={handleUsePreview}
-            disabled={!preview || loading}
+            disabled={!preview || loading || saving}
             sx={{ textTransform: 'none', color: '#e5e7eb', borderColor: '#e5e7eb' }}
           >
-            Use Preview
+            {saving ? 'Saving...' : 'Use Preview'}
           </Button>
         </Stack>
 
         {error && <Typography color='error'>{error}</Typography>}
+        {success && <Typography color='success.main'>{success}</Typography>}
 
         {preview && (
-          <Box sx={{ width: '100%', bgcolor: '#0f172a', p: 2, borderRadius: 2, border: '1px solid #1f2937' }}>
+          <Box sx={{ width: '100%', bgcolor: '#0f172a', p: 2, borderRadius: 2, border: '1px solid #bdc0c4' }}>
             <Typography variant='subtitle1' sx={{ mb: 1 }}>
               Parsed Preview
             </Typography>

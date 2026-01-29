@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Box, Container } from '@mui/material'
-import TaskTable, { TaskRow } from '../components/TaskTable'
+import TaskTable from '../components/TaskTable'
+import type { TaskRow } from '../components/TaskTable'
 import { taskService } from '../services/taskService'
 
 const ViewTasks = () => {

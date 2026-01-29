@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Box,
   Button,
   Checkbox,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -11,6 +12,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material'
 import { aiService } from '../services/aiService'
@@ -39,6 +41,9 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [aiMessage, setAiMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<TaskRow | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     setRows(tasks)
@@ -47,12 +52,88 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
 
   const selectedTasks = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected])
 
+  const mapApiTask = (t: any): TaskRow => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    status: t.status,
+    category: t.category,
+    subcategory: t.subcategory,
+    dueDate: t.due_date,
+    estimatedDuration: t.estimated_duration,
+    note: t.note,
+  })
+
+  const refreshRows = async () => {
+    const all = await taskService.getAll()
+    setRows(all.map(mapApiTask))
+    setSelected(new Set())
+    setEditingId(null)
+    setEditDraft(null)
+  }
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  const startEdit = (row: TaskRow) => {
+    setSelected(new Set([row.id]))
+    setEditingId(row.id)
+    setEditDraft({ ...row })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditDraft(null)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId || !editDraft) return
+    setSavingEdit(true)
+    try {
+      const payload = {
+        title: editDraft.title,
+        description: editDraft.description,
+        priority: editDraft.priority,
+        status: editDraft.status,
+        category: editDraft.category,
+        subcategory: editDraft.subcategory,
+        due_date: editDraft.dueDate,
+        estimated_duration: Number(editDraft.estimatedDuration) || 0,
+        note: editDraft.note,
+      } as any
+
+      const updated = await taskService.update(editingId, payload)
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === editingId
+            ? {
+                id: updated.id,
+                title: updated.title,
+                description: updated.description,
+                priority: updated.priority,
+                status: updated.status,
+                category: updated.category,
+                subcategory: updated.subcategory,
+                dueDate: updated.due_date,
+                estimatedDuration: updated.estimated_duration,
+                note: updated.note,
+              }
+            : r,
+        ),
+      )
+      cancelEdit()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to update task')
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -70,20 +151,14 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
     if (!selectedTasks.length) return
     setBusy(true)
     try {
-      const updates = await Promise.all(
+      await Promise.all(
         selectedTasks.map(async (t) => {
           const res = await aiService.estimateDuration({ title: t.title, description: t.description })
-          const est = res.estimated_minutes ?? res.estimated_duration ?? res.estimatedMinutes ?? 0
+          const est = res.estimated_minutes ?? res.estimated_duration ?? res.estimatedMinutes ?? res.minutes ?? 0
           await taskService.update(t.id, { estimated_duration: est } as any)
-          return { id: t.id, estimatedDuration: est }
         }),
       )
-      setRows((prev) =>
-        prev.map((r) => {
-          const found = updates.find((u) => u.id === r.id)
-          return found ? { ...r, estimatedDuration: found.estimatedDuration } : r
-        }),
-      )
+      await refreshRows()
       setAiMessage('Time estimation updated for selected tasks.')
     } catch (err) {
       console.error(err)
@@ -97,21 +172,15 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
     if (!selectedTasks.length) return
     setBusy(true)
     try {
-      const updates = await Promise.all(
+      await Promise.all(
         selectedTasks.map(async (t) => {
           const res = await aiService.categorizeTask({ title: t.title, description: t.description })
-          const category = res.category ?? t.category
-          const subcategory = res.subcategory ?? t.subcategory
+          const category = res.category ?? res.category_label ?? t.category
+          const subcategory = res.subcategory ?? res.sub_category ?? t.subcategory
           await taskService.update(t.id, { category, subcategory } as any)
-          return { id: t.id, category, subcategory }
         }),
       )
-      setRows((prev) =>
-        prev.map((r) => {
-          const found = updates.find((u) => u.id === r.id)
-          return found ? { ...r, category: found.category as any, subcategory: found.subcategory } : r
-        }),
-      )
+      await refreshRows()
       setAiMessage('Categorization updated for selected tasks.')
     } catch (err) {
       console.error(err)
@@ -125,20 +194,14 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
     if (!selectedTasks.length) return
     setBusy(true)
     try {
-      const updates = await Promise.all(
+      await Promise.all(
         selectedTasks.map(async (t) => {
           const res = await aiService.suggestPriority({ title: t.title, description: t.description, due_date: t.dueDate })
-          const priority = res.priority ?? t.priority
+          const priority = res.priority ?? res.priority_label ?? res.suggestion ?? t.priority
           await taskService.update(t.id, { priority } as any)
-          return { id: t.id, priority }
         }),
       )
-      setRows((prev) =>
-        prev.map((r) => {
-          const found = updates.find((u) => u.id === r.id)
-          return found ? { ...r, priority: found.priority as any } : r
-        }),
-      )
+      await refreshRows()
       setAiMessage('Priority updated for selected tasks.')
     } catch (err) {
       console.error(err)
@@ -241,6 +304,7 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
           <TableBody>
             {rows.map((row) => {
               const isSelected = selected.has(row.id)
+              const isEditing = editingId === row.id
               return (
                 <TableRow key={row.id} hover selected={isSelected}>
                   <TableCell padding='checkbox' sx={{ color: '#e5e7eb' }}>
@@ -251,32 +315,185 @@ const TaskTable = ({ tasks, onDeleted }: Props) => {
                       onChange={() => toggleSelect(row.id)}
                     />
                   </TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.title}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.description}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.priority}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.status}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.category}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.subcategory}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.dueDate || '—'}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb' }}>{row.estimatedDuration ?? '—'}</TableCell>
-                  <TableCell sx={{ color: '#e5e7eb', maxWidth: 180 }}>{row.note}</TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        value={editDraft?.title ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, title: e.target.value } : d))}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.title
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        value={editDraft?.description ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, description: e.target.value } : d))}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.description
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <Select
+                        size='small'
+                        value={editDraft?.priority ?? row.priority}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, priority: e.target.value as any } : d))}
+                        sx={{ color: '#e5e7eb' }}
+                      >
+                        <MenuItem value='high'>high</MenuItem>
+                        <MenuItem value='medium'>medium</MenuItem>
+                        <MenuItem value='low'>low</MenuItem>
+                      </Select>
+                    ) : (
+                      row.priority
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <Select
+                        size='small'
+                        value={editDraft?.status ?? row.status}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, status: e.target.value as any } : d))}
+                        sx={{ color: '#e5e7eb' }}
+                      >
+                        <MenuItem value='pending'>pending</MenuItem>
+                        <MenuItem value='in_progress'>in_progress</MenuItem>
+                        <MenuItem value='completed'>completed</MenuItem>
+                        <MenuItem value='cancelled'>cancelled</MenuItem>
+                      </Select>
+                    ) : (
+                      row.status
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <Select
+                        size='small'
+                        value={editDraft?.category ?? row.category}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, category: e.target.value as any } : d))}
+                        sx={{ color: '#e5e7eb' }}
+                      >
+                        <MenuItem value='work'>work</MenuItem>
+                        <MenuItem value='personal'>personal</MenuItem>
+                        <MenuItem value='other'>other</MenuItem>
+                      </Select>
+                    ) : (
+                      row.category
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        value={editDraft?.subcategory ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, subcategory: e.target.value } : d))}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.subcategory
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        type='date'
+                        value={editDraft?.dueDate ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, dueDate: e.target.value } : d))}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.dueDate || '—'
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb' }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        type='number'
+                        value={editDraft?.estimatedDuration ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, estimatedDuration: Number(e.target.value) } : d))}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.estimatedDuration ?? '—'
+                    )}
+                  </TableCell>
+                  <TableCell sx={{ color: '#e5e7eb', maxWidth: 180 }}>
+                    {isEditing ? (
+                      <TextField
+                        size='small'
+                        value={editDraft?.note ?? ''}
+                        onChange={(e) => setEditDraft((d) => (d ? { ...d, note: e.target.value } : d))}
+                        sx={{ input: { color: '#e5e7eb' } }}
+                      />
+                    ) : (
+                      row.note
+                    )}
+                  </TableCell>
                   <TableCell align='right' sx={{ color: '#e5e7eb' }}>
-                    <Button
-                      size='small'
-                      variant='contained'
-                      color='error'
-                      onClick={() => handleDelete(row.id)}
-                      sx={{
-                        textTransform: 'none',
-                        bgcolor: '#b91c1c',
-                        color: '#f8fafc',
-                        fontWeight: 600,
-                        fontFamily: 'Helvetica, Arial, sans-serif',
-                        '&:hover': { bgcolor: '#dc2626' },
-                      }}
-                    >
-                      Delete
-                    </Button>
+                    {isEditing ? (
+                      <Stack direction='row' spacing={1} justifyContent='flex-end'>
+                        <Button
+                          size='small'
+                          variant='outlined'
+                          color='inherit'
+                          onClick={cancelEdit}
+                          disabled={savingEdit}
+                          sx={{ textTransform: 'none', color: '#e5e7eb', borderColor: '#9ca3af' }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size='small'
+                          variant='contained'
+                          color='primary'
+                          onClick={saveEdit}
+                          disabled={savingEdit}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          {savingEdit ? 'Saving...' : 'Save'}
+                        </Button>
+                      </Stack>
+                    ) : (
+                      <Stack direction='row' spacing={1} justifyContent='flex-end'>
+                        <Button
+                          size='small'
+                          variant='contained'
+                          color='secondary'
+                          onClick={() => startEdit(row)}
+                          disabled={!isSelected || busy}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size='small'
+                          variant='contained'
+                          color='error'
+                          onClick={() => handleDelete(row.id)}
+                          disabled={busy}
+                          sx={{
+                            textTransform: 'none',
+                            bgcolor: '#b91c1c',
+                            color: '#f8fafc',
+                            fontWeight: 600,
+                            fontFamily: 'Helvetica, Arial, sans-serif',
+                            '&:hover': { bgcolor: '#dc2626' },
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </Stack>
+                    )}
                   </TableCell>
                 </TableRow>
               )
