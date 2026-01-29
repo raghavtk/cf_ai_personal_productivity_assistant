@@ -10,7 +10,7 @@ interface Env {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
 }
 
 const json = (data: unknown, status = 200) =>
@@ -73,20 +73,36 @@ export default {
     if (path.match(/^\/api\/tasks\/[^/]+$/) && request.method === 'PUT') {
       const id = path.split('/').pop()
       const body = (await request.json()) as any
+      const existing = await env.DB.prepare('SELECT * FROM tasks WHERE id = ?').bind(id).first()
+      if (!existing) return json({ error: 'Task not found' }, 404)
+
       const now = new Date().toISOString()
+      const merged = {
+        title: body.title ?? existing.title ?? '',
+        description: body.description ?? existing.description ?? '',
+        priority: body.priority ?? existing.priority ?? 'medium',
+        status: body.status ?? existing.status ?? 'pending',
+        category: body.category ?? existing.category ?? 'work',
+        subcategory: body.subcategory ?? existing.subcategory ?? 'Courses',
+        due_date: body.due_date ?? existing.due_date ?? '',
+        estimated_duration:
+          body.estimated_duration !== undefined ? Number(body.estimated_duration) : existing.estimated_duration ?? 0,
+        note: body.note ?? existing.note ?? '',
+      }
+
       await env.DB.prepare(
         `UPDATE tasks SET title=?,description=?,priority=?,status=?,category=?,subcategory=?,due_date=?,estimated_duration=?,note=?,updated_at=? WHERE id=?`,
       )
         .bind(
-          body.title,
-          body.description,
-          body.priority,
-          body.status,
-          body.category,
-          body.subcategory,
-          body.due_date,
-          body.estimated_duration,
-          body.note,
+          merged.title,
+          merged.description,
+          merged.priority,
+          merged.status,
+          merged.category,
+          merged.subcategory,
+          merged.due_date,
+          merged.estimated_duration,
+          merged.note,
           now,
           id,
         )
@@ -111,7 +127,14 @@ export default {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input }),
       })
-      return new Response(res.body, { status: res.status, headers: corsHeaders })
+      // Ensure we return proper JSON with CORS
+      const text = await res.text()
+      try {
+        const payload = JSON.parse(text)
+        return json(payload, res.status)
+      } catch (err) {
+        return json({ error: 'Invalid JSON from DO', raw: text }, 502)
+      }
     }
 
     if (path === '/api/ai/suggest-priority' && request.method === 'POST') {

@@ -5,12 +5,14 @@ compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
+remote = true
 
 [[d1_databases]]
 binding = "DB"
 database_name = "productivity-db"
 database_id = "3bfde29c-eff5-4a2c-9f7e-544c78849f4e"
 migrations_dir = "db/migrations"
+preview_database_id = "3bfde29c-eff5-4a2c-9f7e-544c78849f4e"
 
 [[durable_objects.bindings]]
 name = "COMMAND_PARSER"
